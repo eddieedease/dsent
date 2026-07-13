@@ -22,10 +22,10 @@ function buildDroneMesh() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.OctahedronGeometry(1.7, 0),
-    new THREE.MeshLambertMaterial({ color: 0x8a5a2a, flatShading: true }),
+    new THREE.MeshLambertMaterial({ color: 0x1e2a44, flatShading: true, emissive: 0x0a1530 }),
   );
   g.add(body);
-  const wingMat = new THREE.MeshLambertMaterial({ color: 0x555f66 });
+  const wingMat = new THREE.MeshLambertMaterial({ color: 0x2c3a55 });
   for (const side of [-1, 1]) {
     const wing = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.3, 1.1), wingMat);
     wing.position.set(side * 1.9, 0, 0);
@@ -33,7 +33,7 @@ function buildDroneMesh() {
   }
   const eye = new THREE.Mesh(
     new THREE.SphereGeometry(0.45, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xff2222 }),
+    new THREE.MeshBasicMaterial({ color: 0xff2fd6 }),
   );
   eye.position.set(0, 0.2, 1.4);
   g.add(eye);
@@ -44,10 +44,10 @@ function buildHulkMesh() {
   const g = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(3.4, 2.6, 3),
-    new THREE.MeshLambertMaterial({ color: 0xa06020, flatShading: true }),
+    new THREE.MeshLambertMaterial({ color: 0x3a2048, flatShading: true, emissive: 0x180a24 }),
   );
   g.add(body);
-  const armMat = new THREE.MeshLambertMaterial({ color: 0x604020 });
+  const armMat = new THREE.MeshLambertMaterial({ color: 0x281838 });
   for (const side of [-1, 1]) {
     const arm = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 2.6), armMat);
     arm.position.set(side * 2.3, -0.4, 0.4);
@@ -55,7 +55,7 @@ function buildHulkMesh() {
   }
   const eye = new THREE.Mesh(
     new THREE.SphereGeometry(0.6, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffee22 }),
+    new THREE.MeshBasicMaterial({ color: 0x00eaff }),
   );
   eye.position.set(0, 0.6, 1.7);
   g.add(eye);

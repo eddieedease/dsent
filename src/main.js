@@ -156,7 +156,14 @@ function applyPowerup(kind) {
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Digit1') { player.weapon = 'laser'; hud.setWeapon('LASER'); }
   if (e.code === 'Digit2') { player.weapon = 'missile'; hud.setWeapon('MISSILE'); }
+  if (e.code === 'KeyF') {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => {});
+  }
 });
+
+player.onWeaponChange = (w) => hud.setWeapon(w === 'laser' ? 'LASER' : 'MISSILE');
+player.onGamepad = (id) => hud.message('GAMEPAD CONNECTED', 2);
 
 const overlay = document.getElementById('overlay');
 overlay.addEventListener('click', () => {
@@ -226,6 +233,13 @@ function tick() {
         missileCooldown = 0.8;
       }
     }
+    // gamepad LT fires missiles regardless of the selected weapon
+    if (player.padMissile && missileCooldown <= 0 && player.missiles > 0) {
+      projectiles.firePlayerMissile(camera);
+      player.missiles -= 1;
+      hud.setMissiles(player.missiles);
+      missileCooldown = 0.8;
+    }
 
     enemies.update(dt, { player, level, projectiles });
     projectiles.update(dt, { enemies: enemies.alive, player, onEnemyHit, onPlayerHit });
@@ -262,7 +276,7 @@ tick();
 
 if (import.meta.env.DEV) {
   window.__game = {
-    THREE, scene, camera, player, enemies, projectiles,
+    THREE, scene, camera, player, enemies, projectiles, renderer,
     get level() { return level; },
     get state() { return state; },
   };

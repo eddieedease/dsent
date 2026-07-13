@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rockTexture, panelTexture, floorTexture } from './textures.js';
+import { rockTexture, panelTexture, panelGlowTexture, floorTexture, gridGlowTexture } from './textures.js';
 
 export const CELL = 12; // world units per maze cell
 
@@ -210,14 +210,20 @@ export class Level {
     }
 
     const tint = this.config.tint;
+    const neon = this.config.neon;
     const mats = {
       rock: new THREE.MeshLambertMaterial({ map: rockTexture(tint) }),
-      floor: new THREE.MeshLambertMaterial({ map: floorTexture(tint) }),
-      panel: new THREE.MeshLambertMaterial({
-        map: panelTexture(),
+      floor: new THREE.MeshLambertMaterial({
+        map: floorTexture(tint),
         emissive: 0xffffff,
-        emissiveMap: panelTexture(),
-        emissiveIntensity: 0.55,
+        emissiveMap: gridGlowTexture(neon),
+        emissiveIntensity: 0.85,
+      }),
+      panel: new THREE.MeshLambertMaterial({
+        map: panelTexture(neon),
+        emissive: 0xffffff,
+        emissiveMap: panelGlowTexture(neon),
+        emissiveIntensity: 1.0,
       }),
     };
 
@@ -263,7 +269,7 @@ export class Level {
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     for (const spot of shuffled.slice(0, 10)) {
-      const light = new THREE.PointLight(0xffd9a0, 12, CELL * 3.5, 1.6);
+      const light = new THREE.PointLight(new THREE.Color(this.config.neon), 14, CELL * 3.5, 1.6);
       light.position.copy(spot);
       this.group.add(light);
     }

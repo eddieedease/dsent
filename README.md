@@ -8,15 +8,31 @@ Three levels of increasing size and difficulty.
 
 ## Controls
 
+### Keyboard + mouse
+
 | Input | Action |
 | --- | --- |
 | Mouse | Look / steer |
 | Left mouse / Space | Fire |
 | W / S | Thrust forward / back |
 | A / D | Strafe left / right |
-| R / F | Slide up / down |
+| Z / C | Slide down / up |
 | Q / E | Roll |
 | 1 / 2 | Select laser / missiles |
+| F | Toggle fullscreen |
+
+### Gamepad
+
+| Input | Action |
+| --- | --- |
+| Left stick | Throttle (Y) + strafe (X) |
+| Right stick | Look (pitch / yaw) |
+| LB / RB | Slide down / up |
+| RT or A | Fire selected weapon |
+| LT | Fire missile |
+| B | Switch weapon |
+| D-pad left/right | Strafe |
+| D-pad up/down | Roll |
 
 ## Gameplay
 
