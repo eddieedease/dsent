@@ -26,6 +26,7 @@ export class Level {
     this.carveMaze();
     this.carveRooms();
     this.pickSpecialCells();
+    this.pickZones();
     this.buildMeshes();
   }
 
@@ -100,12 +101,26 @@ export class Level {
   }
 
   carveRooms() {
+    // Mix of room shapes so a few chambers read as distinct landmarks
+    // instead of every open space being the same little box — helps players
+    // build a mental map ("the tall shaft", "the big cross room").
     const rand = this.rand;
     for (let i = 0; i < this.config.rooms; i++) {
       const x = 2 + Math.floor(rand() * (this.w - 4));
       const y = 1 + Math.floor(rand() * (this.h - 2));
       const z = 2 + Math.floor(rand() * (this.d - 4));
-      this.carveRoom(x, y, z, 1 + Math.floor(rand() * 2), 1, 1 + Math.floor(rand() * 2));
+      const shape = rand();
+      if (shape < 0.15) {
+        // tall vertical shaft
+        this.carveRoom(x, y, z, 1, 1 + Math.floor(rand() * (this.h - 2)), 1);
+      } else if (shape < 0.3) {
+        // wide cross-shaped hub
+        const r = 2 + Math.floor(rand() * 2);
+        this.carveRoom(x, y, z, r, 1, 1);
+        this.carveRoom(x, y, z, 1, 1, r);
+      } else {
+        this.carveRoom(x, y, z, 1 + Math.floor(rand() * 2), 1, 1 + Math.floor(rand() * 2));
+      }
     }
   }
 
@@ -142,12 +157,19 @@ export class Level {
     this.reactorPos = this.cellCenter(far[0], far[1], far[2]);
 
     // Exit: farthest empty cell from the reactor (recompute after carving).
-    ({ dist, order } = this.bfs(far[0], far[1], far[2]));
+    const reactorBfs = this.bfs(far[0], far[1], far[2]);
+    ({ dist, order } = reactorBfs);
     let exit = order[order.length - 1];
     // Avoid placing the exit on top of the player start.
     if (exit[0] === 1 && exit[1] === 1 && exit[2] === 1) exit = order[order.length - 2];
     this.exitCell = exit;
     this.exitPos = this.cellCenter(exit[0], exit[1], exit[2]);
+
+    // Corridor-following distance fields for the objective guide ping: how
+    // many cells away (through the maze, not as the crow flies) each cell is
+    // from the reactor / exit. Reused every time the player pings.
+    this.distFromReactor = reactorBfs.dist;
+    this.distFromExit = this.bfs(exit[0], exit[1], exit[2]).dist;
 
     // Candidate cells for enemies/powerups: away from the start.
     const startBfs = this.bfs(1, 1, 1);
@@ -170,6 +192,36 @@ export class Level {
       const [x, y, z] = pick();
       this.powerupSpawns.push(this.cellCenter(x, y, z));
     }
+  }
+
+  // A handful of large Voronoi-ish colour zones scattered across the floor
+  // plan, each a subtle hue-shifted tint of the level's neon accent. Purely
+  // visual: it gives distinct "districts" (rock walls carry a color cast) so
+  // players can orient by "past the purple stretch" instead of every tunnel
+  // looking identical.
+  pickZones() {
+    const rand = this.rand;
+    const count = 5;
+    const base = new THREE.Color(this.config.neon);
+    const hsl = {};
+    base.getHSL(hsl);
+    this.zones = [];
+    for (let i = 0; i < count; i++) {
+      const hue = (hsl.h + i / count + rand() * 0.1) % 1;
+      const col = new THREE.Color().setHSL(hue, Math.min(1, hsl.s * 0.85 + 0.15), 0.55);
+      const mult = new THREE.Color(1, 1, 1).lerp(col, 0.4);
+      this.zones.push({ x: rand() * this.w, z: rand() * this.d, mult });
+    }
+  }
+
+  zoneColorAt(x, z) {
+    let best = this.zones[0];
+    let bestD = Infinity;
+    for (const zn of this.zones) {
+      const d = (zn.x - x) ** 2 + (zn.z - z) ** 2;
+      if (d < bestD) { bestD = d; best = zn; }
+    }
+    return best.mult;
   }
 
   // --- geometry ---------------------------------------------------------
@@ -203,7 +255,7 @@ export class Level {
             else if (ny === 0 && rand() < 0.1) bucket = 'panel';
             const facePos = center.clone().addScaledVector(new THREE.Vector3(-nx, -ny, -nz), CELL / 2);
             if (bucket === 'panel') this.lightSpots.push(facePos.clone().addScaledVector(new THREE.Vector3(nx, ny, nz), 2));
-            buckets[bucket].push({ pos: facePos, f });
+            buckets[bucket].push({ pos: facePos, f, cellX: x, cellZ: z });
           }
         }
       }
@@ -212,12 +264,13 @@ export class Level {
     const tint = this.config.tint;
     const neon = this.config.neon;
     const mats = {
-      rock: new THREE.MeshLambertMaterial({ map: rockTexture(tint) }),
+      rock: new THREE.MeshLambertMaterial({ map: rockTexture(tint), vertexColors: true }),
       floor: new THREE.MeshLambertMaterial({
         map: floorTexture(tint),
         emissive: 0xffffff,
         emissiveMap: gridGlowTexture(neon),
         emissiveIntensity: 0.85,
+        vertexColors: true,
       }),
       panel: new THREE.MeshLambertMaterial({
         map: panelTexture(neon),
@@ -232,9 +285,11 @@ export class Level {
       const positions = new Float32Array(faces.length * 4 * 3);
       const normals = new Float32Array(faces.length * 4 * 3);
       const uvs = new Float32Array(faces.length * 4 * 2);
+      const zoned = name === 'rock' || name === 'floor';
+      const colors = zoned ? new Float32Array(faces.length * 4 * 3) : null;
       const indices = [];
       const h = CELL / 2;
-      faces.forEach(({ pos, f }, i) => {
+      faces.forEach(({ pos, f, cellX, cellZ }, i) => {
         const u = new THREE.Vector3(...f.u).multiplyScalar(h);
         const v = new THREE.Vector3(...f.v).multiplyScalar(h);
         const corners = [
@@ -244,12 +299,14 @@ export class Level {
           pos.clone().sub(u).add(v),
         ];
         const uvCoords = [[0, 0], [1, 0], [1, 1], [0, 1]];
+        const zoneColor = zoned ? this.zoneColorAt(cellX, cellZ) : null;
         corners.forEach((c, j) => {
           const vi = (i * 4 + j) * 3;
           positions[vi] = c.x; positions[vi + 1] = c.y; positions[vi + 2] = c.z;
           normals[vi] = f.n[0]; normals[vi + 1] = f.n[1]; normals[vi + 2] = f.n[2];
           const ti = (i * 4 + j) * 2;
           uvs[ti] = uvCoords[j][0]; uvs[ti + 1] = uvCoords[j][1];
+          if (zoneColor) { colors[vi] = zoneColor.r; colors[vi + 1] = zoneColor.g; colors[vi + 2] = zoneColor.b; }
         });
         const b = i * 4;
         indices.push(b, b + 1, b + 2, b, b + 2, b + 3);
@@ -258,6 +315,7 @@ export class Level {
       geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
       geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      if (colors) geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
       geo.setIndex(indices);
       this.group.add(new THREE.Mesh(geo, mats[name]));
     }
@@ -275,11 +333,44 @@ export class Level {
     }
   }
 
+  // Direction (unit vector, world space) from `fromPos` toward the next
+  // corridor cell on the shortest path to the reactor or exit, following the
+  // precomputed BFS distance field so it hugs corridors instead of pointing
+  // straight through walls. Returns null if already effectively there.
+  guideDirection(fromPos, target) {
+    const distField = target === 'exit' ? this.distFromExit : this.distFromReactor;
+    let [x, y, z] = this.worldToCell(fromPos);
+    if (this.isSolid(x, y, z)) {
+      // Player is straddling a wall face; nudge to the nearest open neighbor.
+      const N = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+      for (const [dx, dy, dz] of N) {
+        if (!this.isSolid(x + dx, y + dy, z + dz)) { x += dx; y += dy; z += dz; break; }
+      }
+    }
+    if (!this.inBounds(x, y, z) || this.isSolid(x, y, z)) return null;
+    const myDist = distField[this.idx(x, y, z)];
+    if (myDist <= 0) return null; // already at the objective
+    const N = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+    let best = null, bestDist = myDist;
+    for (const [dx, dy, dz] of N) {
+      const nx = x + dx, ny = y + dy, nz = z + dz;
+      if (this.isSolid(nx, ny, nz)) continue;
+      const d = distField[this.idx(nx, ny, nz)];
+      if (d >= 0 && d < bestDist) { bestDist = d; best = [nx, ny, nz]; }
+    }
+    if (!best) return null;
+    return this.cellCenter(best[0], best[1], best[2]).sub(fromPos).normalize();
+  }
+
   // --- physics helpers ---------------------------------------------------
 
   // Push a sphere out of any solid cells. Mutates pos; returns true on contact.
-  collideSphere(pos, radius) {
+  // If `outNormal` (a Vector3) is given, accumulates the (unnormalized) sum of
+  // per-cell push directions into it — callers use this to bounce velocity
+  // off the surface instead of just killing it.
+  collideSphere(pos, radius, outNormal) {
     let hit = false;
+    if (outNormal) outNormal.set(0, 0, 0);
     const minX = Math.floor((pos.x - radius) / CELL);
     const maxX = Math.floor((pos.x + radius) / CELL);
     const minY = Math.floor((pos.y - radius) / CELL);
@@ -302,8 +393,10 @@ export class Level {
           if (dist > 1e-6) {
             const push = (radius - dist) / dist;
             pos.x += dx * push; pos.y += dy * push; pos.z += dz * push;
+            if (outNormal) { outNormal.x += dx / dist; outNormal.y += dy / dist; outNormal.z += dz / dist; }
           } else {
             pos.y = by0 + CELL + radius; // degenerate: pop upward
+            if (outNormal) outNormal.y += 1;
           }
         }
       }

@@ -11,7 +11,7 @@ export const LEVELS = [
     neon: '#00eaff',
     tint: { base: [16, 22, 46], variation: [26, 34, 62], floorBase: [14, 17, 28] },
     fog: 0x030510,
-    enemies: { drone: 6, hulk: 1 },
+    enemies: { drone: 18, hulk: 3 },
     powerups: 6,
   },
   {
@@ -22,7 +22,7 @@ export const LEVELS = [
     neon: '#ff2fd6',
     tint: { base: [34, 14, 38], variation: [48, 24, 56], floorBase: [22, 12, 26] },
     fog: 0x0a0210,
-    enemies: { drone: 9, hulk: 3 },
+    enemies: { drone: 27, hulk: 9 },
     powerups: 8,
   },
   {
@@ -33,7 +33,7 @@ export const LEVELS = [
     neon: '#39ff88',
     tint: { base: [12, 32, 22], variation: [20, 52, 34], floorBase: [10, 22, 16] },
     fog: 0x010804,
-    enemies: { drone: 12, hulk: 5 },
+    enemies: { drone: 36, hulk: 15 },
     powerups: 10,
   },
 ];

@@ -9,6 +9,7 @@ const DAMPING = 3.2;       // per-second velocity damping
 const ROLL_SPEED = 2.2;    // rad/s
 const MOUSE_SENS = 0.0022;
 const RADIUS = 2.4;        // collision sphere
+const BOUNCE = 0.4;        // restitution when caroming off a wall (0 = stick, 1 = perfectly elastic)
 
 // gamepad tuning
 const PAD_DEADZONE = 0.18;
@@ -23,6 +24,7 @@ export class Player {
     this.camera = camera;
     this.level = level;
     this.velocity = new THREE.Vector3();
+    this._hitNormal = new THREE.Vector3();
     this.keys = {};
     this.mouseDX = 0;
     this.mouseDY = 0;
@@ -40,6 +42,7 @@ export class Player {
     // gamepad state (polled each frame)
     this.padPrimary = false;   // RT / A: fire selected weapon
     this.padMissile = false;   // LT: fire a missile directly
+    this.pingRequested = false; // Y: guide ping, consumed by main.js
     this.prevPadButtons = {};
     this.onWeaponChange = null; // set by main.js to sync the HUD
 
@@ -121,6 +124,11 @@ export class Player {
       this.onWeaponChange?.(this.weapon);
     }
     this.prevPadButtons[1] = b;
+
+    // Y: guide ping (edge-triggered)
+    const y = btn(3);
+    if (y && !this.prevPadButtons[3]) this.pingRequested = true;
+    this.prevPadButtons[3] = y;
   }
 
   update(dt) {
@@ -164,9 +172,18 @@ export class Player {
     const steps = Math.max(1, Math.ceil((this.velocity.length() * dt) / (RADIUS * 0.5)));
     for (let i = 0; i < steps; i++) {
       cam.position.addScaledVector(this.velocity, dt / steps);
-      if (this.level.collideSphere(cam.position, RADIUS)) {
-        // kill velocity into the wall by re-deriving it from actual motion
-        this.velocity.multiplyScalar(0.82);
+      if (this.level.collideSphere(cam.position, RADIUS, this._hitNormal)) {
+        // Bounce off the wall: reflect the velocity component along the
+        // surface normal (with restitution) instead of just sanding it
+        // down, so hitting a wall caroms the ship off it rather than
+        // gluing it to a slow grind. Tangential (sliding) velocity is
+        // left mostly intact.
+        if (this._hitNormal.lengthSq() > 1e-8) {
+          const n = this._hitNormal.normalize();
+          const vn = this.velocity.dot(n);
+          if (vn < 0) this.velocity.addScaledVector(n, -vn * (1 + BOUNCE));
+        }
+        this.velocity.multiplyScalar(0.92);
       }
     }
 

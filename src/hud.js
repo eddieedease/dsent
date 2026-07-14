@@ -26,6 +26,13 @@ export const hud = {
     clearTimeout(msgTimer);
     msgTimer = setTimeout(() => m.classList.remove('show'), seconds * 1000);
   },
+  setGuide(angleDeg, label, opacity = 1) {
+    const c = el('guideCompass');
+    c.style.opacity = opacity;
+    c.querySelector('.arrow-svg').style.transform = `rotate(${angleDeg}deg)`;
+    el('guideLabel').textContent = label;
+  },
+  hideGuide() { el('guideCompass').style.opacity = 0; },
   overlay(title, text, subtitle = 'CLICK TO CONTINUE') {
     el('overlayTitle').textContent = title;
     el('overlayText').innerHTML = text;

@@ -46,6 +46,18 @@
     #crosshair line { stroke: #0ef; stroke-width: 2; }
     #crosshair circle { stroke: rgba(0, 238, 255, 0.5); fill: none; stroke-width: 1; }
 
+    #guideCompass {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      margin-top: 66px;
+      width: 60px; text-align: center;
+      opacity: 0; transition: opacity .3s;
+      filter: drop-shadow(0 0 6px #ff2fd6);
+    }
+    #guideCompass .arrow-svg { width: 40px; height: 40px; transition: transform .15s ease-out; }
+    #guideCompass polygon { fill: #ff2fd6; }
+    #guideLabel { font-size: 10px; letter-spacing: 2px; color: #ff2fd6; text-shadow: 0 0 6px #ff2fd6; margin-top: 2px; }
+
     .hud-bottom {
       position: absolute; bottom: 0; left: 0; right: 0;
       display: flex; justify-content: center; gap: 18px;
@@ -162,6 +174,12 @@
         <line x1="4" y1="23" x2="14" y2="23" />
         <line x1="32" y1="23" x2="42" y2="23" />
       </svg>
+      <div id="guideCompass">
+        <svg class="arrow-svg" viewBox="0 0 60 60">
+          <polygon points="30,6 44,50 30,40 16,50" />
+        </svg>
+        <div id="guideLabel">REACTOR</div>
+      </div>
       <div class="hud-bottom">
         <div class="panel">
           <div class="label">LASER LVL <span id="hudLaserLvl">1</span></div>
@@ -186,7 +204,8 @@
         MOUSE &mdash; look / steer &nbsp;&bull;&nbsp; LMB or SPACE &mdash; fire<br />
         W/S &mdash; forward / back &nbsp;&bull;&nbsp; A/D &mdash; strafe &nbsp;&bull;&nbsp; Z/C &mdash; slide down / up<br />
         Q/E &mdash; roll &nbsp;&bull;&nbsp; 1/2 &mdash; weapons &nbsp;&bull;&nbsp; F &mdash; fullscreen<br />
-        GAMEPAD &mdash; left stick throttle+strafe, right stick look, bumpers slide, triggers fire<br />
+        G &mdash; guide ping (points toward your objective)<br />
+        GAMEPAD &mdash; left stick throttle+strafe, right stick look, bumpers slide, triggers fire, Y &mdash; guide ping<br />
         find the reactor, destroy it, reach the exit
       </p>
       <div class="blink">CLICK TO LAUNCH</div>
